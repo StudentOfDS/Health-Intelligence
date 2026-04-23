@@ -1,0 +1,10 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f5f7fb; color: #121926; }
+main { max-width: 880px; margin: 0 auto; padding: 16px; }
+section { background: white; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+label { display: block; margin-bottom: 10px; font-weight: 600; }
+input, select { width: 100%; margin-top: 4px; padding: 10px; border-radius: 8px; border: 1px solid #c4ccda; }
+button { background: #1851d8; color: white; border: 0; padding: 10px 14px; border-radius: 8px; font-weight: 700; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.badge { display: inline-block; padding: 5px 10px; border-radius: 999px; background: #dbe8ff; color: #0d3a99; font-weight: 700; }
+pre { overflow-x: auto; background: #111827; color: #e5e7eb; padding: 10px; border-radius: 8px; }
