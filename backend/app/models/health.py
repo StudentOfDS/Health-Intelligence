@@ -12,22 +12,11 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     anonymized_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
-    pii: Mapped["UserPII"] = relationship(back_populates="user", uselist=False, cascade="all, delete-orphan")
-    profile: Mapped["BaselineProfile"] = relationship(back_populates="user", uselist=False, cascade="all, delete-orphan")
-    logs: Mapped[list["DailyLog"]] = relationship(back_populates="user", cascade="all, delete-orphan")
-
-
-class UserPII(Base):
-    __tablename__ = "user_pii"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    user: Mapped[User] = relationship(back_populates="pii")
+    profile: Mapped["BaselineProfile"] = relationship(back_populates="user", uselist=False, cascade="all, delete-orphan")
+    logs: Mapped[list["DailyLog"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class BaselineProfile(Base):
@@ -60,7 +49,6 @@ class DailyLog(Base):
     protein_g: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     carbs_g: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     fats_g: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    meal_timing: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     sleep_hours: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     sleep_quality: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     steps: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

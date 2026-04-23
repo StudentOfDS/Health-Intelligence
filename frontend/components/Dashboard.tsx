@@ -1,73 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { getJson, postJson } from "@/lib/api";
 
-type User = { id: number; anonymized_id: string };
-
-type BaselineForm = {
-  age: number;
-  sex: string;
-  height_cm: number;
-  weight_kg: number;
-  body_fat_pct?: number;
-  occupation_type: string;
-  medical_conditions: string;
-  primary_goal: string;
-};
-
-type DailyForm = {
-  log_date: string;
-  calories?: number;
-  protein_g?: number;
-  carbs_g?: number;
-  fats_g?: number;
-  meal_timing: string;
-  sleep_hours?: number;
-  sleep_quality?: number;
-  steps?: number;
-  exercise_minutes?: number;
-  exercise_type: string;
-  sedentary_minutes?: number;
-  water_liters?: number;
-  stress_level?: number;
-  alcohol_units?: number;
-  smoking_status: string;
-  diet_type: string;
-  heart_rate?: number;
-  blood_sugar?: number;
-  weight_kg?: number;
-};
+type User = { id: number; anonymized_id: string; email: string };
+type Analysis = Record<string, unknown>;
 
 export default function Dashboard() {
   const [email, setEmail] = useState("");
   const [user, setUser] = useState<User | null>(null);
-  const [capabilities, setCapabilities] = useState<Record<string, unknown> | null>(null);
-  const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [baseline, setBaseline] = useState<BaselineForm>({
-    age: 30,
-    sex: "female",
-    height_cm: 168,
-    weight_kg: 65,
-    occupation_type: "desk",
-    medical_conditions: "",
-    primary_goal: "improve sleep and body composition",
-  });
-
-  const [daily, setDaily] = useState<DailyForm>({
-    log_date: new Date().toISOString().slice(0, 10),
-    meal_timing: "regular",
-    exercise_type: "strength",
-    smoking_status: "non-smoker",
-    diet_type: "balanced",
-  });
-
-  useEffect(() => {
-    getJson<Record<string, unknown>>("/platform/capabilities").then(setCapabilities).catch(() => undefined);
-  }, []);
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   async function createUser() {
     setError(null);
@@ -75,27 +21,31 @@ export default function Dashboard() {
       const created = await postJson<User>("/users", { email });
       setUser(created);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Create user failed");
+      setError(e instanceof Error ? e.message : "Failed to create user");
     }
   }
 
-  async function saveBaseline() {
+  async function createQuickLog() {
     if (!user) return;
     setError(null);
     try {
-      await postJson("/baseline", { user_id: user.id, ...baseline });
+      await postJson("/logs", {
+        user_id: user.id,
+        log_date: today,
+        calories: 2200,
+        protein_g: 140,
+        carbs_g: 230,
+        fats_g: 75,
+        sleep_hours: 7.3,
+        sleep_quality: 7,
+        steps: 9400,
+        exercise_minutes: 45,
+        water_liters: 2.4,
+        stress_level: 4,
+        diet_type: "balanced",
+      });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Baseline save failed");
-    }
-  }
-
-  async function saveDailyLog() {
-    if (!user) return;
-    setError(null);
-    try {
-      await postJson("/logs", { user_id: user.id, ...daily });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Daily save failed");
+      setError(e instanceof Error ? e.message : "Failed to create log");
     }
   }
 
@@ -103,77 +53,57 @@ export default function Dashboard() {
     if (!user) return;
     setError(null);
     try {
-      const result = await getJson<Record<string, unknown>>(`/users/${user.id}/analysis`);
+      const result = await getJson<Analysis>(`/users/${user.id}/analysis`);
       setAnalysis(result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Analysis failed");
+      setError(e instanceof Error ? e.message : "Failed to run analysis");
     }
   }
 
   return (
     <main>
-      <h1>Health Intelligence Platform</h1>
-      <p>Backend-first platform: one statistical engine, multiple client interfaces.</p>
+      <h1>Health Intelligence App</h1>
+      <p>Collect daily data, trigger the SSDI pipeline, and inspect stage-gated outputs.</p>
 
       <section>
-        <h2>Platform Capabilities</h2>
-        <pre>{JSON.stringify(capabilities, null, 2)}</pre>
+        <h2>1) Create User</h2>
+        <label>
+          Email
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@example.com" />
+        </label>
+        <button onClick={createUser}>Create user</button>
+        {user && (
+          <p>
+            Active user: <span className="badge">{user.anonymized_id.slice(0, 12)}</span>
+          </p>
+        )}
       </section>
 
       <section>
-        <h2>1) Identity (PII separated in backend)</h2>
-        <label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@example.com" /></label>
-        <button onClick={createUser}>Create User</button>
-        {user && <p>Anonymized user: <span className="badge">{user.anonymized_id.slice(0, 14)}</span></p>}
-      </section>
-
-      <section>
-        <h2>2) Baseline Onboarding</h2>
+        <h2>2) Daily Logging + Analysis</h2>
         <div className="grid">
-          <label>Age<input type="number" value={baseline.age} onChange={(e) => setBaseline({ ...baseline, age: Number(e.target.value) })} /></label>
-          <label>Sex<input value={baseline.sex} onChange={(e) => setBaseline({ ...baseline, sex: e.target.value })} /></label>
-          <label>Height cm<input type="number" value={baseline.height_cm} onChange={(e) => setBaseline({ ...baseline, height_cm: Number(e.target.value) })} /></label>
-          <label>Weight kg<input type="number" value={baseline.weight_kg} onChange={(e) => setBaseline({ ...baseline, weight_kg: Number(e.target.value) })} /></label>
-          <label>Body fat %<input type="number" value={baseline.body_fat_pct ?? ""} onChange={(e) => setBaseline({ ...baseline, body_fat_pct: Number(e.target.value) })} /></label>
-          <label>Occupation<input value={baseline.occupation_type} onChange={(e) => setBaseline({ ...baseline, occupation_type: e.target.value })} /></label>
-          <label>Medical conditions<input value={baseline.medical_conditions} onChange={(e) => setBaseline({ ...baseline, medical_conditions: e.target.value })} /></label>
-          <label>Goal<input value={baseline.primary_goal} onChange={(e) => setBaseline({ ...baseline, primary_goal: e.target.value })} /></label>
-        </div>
-        <button onClick={saveBaseline} disabled={!user}>Save Baseline</button>
-      </section>
-
-      <section>
-        <h2>3) Daily Structured Logging</h2>
-        <div className="grid">
-          <label>Date<input type="date" value={daily.log_date} onChange={(e) => setDaily({ ...daily, log_date: e.target.value })} /></label>
-          <label>Calories<input type="number" onChange={(e) => setDaily({ ...daily, calories: Number(e.target.value) })} /></label>
-          <label>Protein g<input type="number" onChange={(e) => setDaily({ ...daily, protein_g: Number(e.target.value) })} /></label>
-          <label>Carbs g<input type="number" onChange={(e) => setDaily({ ...daily, carbs_g: Number(e.target.value) })} /></label>
-          <label>Fats g<input type="number" onChange={(e) => setDaily({ ...daily, fats_g: Number(e.target.value) })} /></label>
-          <label>Meal timing<input value={daily.meal_timing} onChange={(e) => setDaily({ ...daily, meal_timing: e.target.value })} /></label>
-          <label>Sleep hours<input type="number" step="0.1" onChange={(e) => setDaily({ ...daily, sleep_hours: Number(e.target.value) })} /></label>
-          <label>Sleep quality<input type="number" onChange={(e) => setDaily({ ...daily, sleep_quality: Number(e.target.value) })} /></label>
-          <label>Steps<input type="number" onChange={(e) => setDaily({ ...daily, steps: Number(e.target.value) })} /></label>
-          <label>Exercise min<input type="number" onChange={(e) => setDaily({ ...daily, exercise_minutes: Number(e.target.value) })} /></label>
-          <label>Exercise type<input value={daily.exercise_type} onChange={(e) => setDaily({ ...daily, exercise_type: e.target.value })} /></label>
-          <label>Sedentary min<input type="number" onChange={(e) => setDaily({ ...daily, sedentary_minutes: Number(e.target.value) })} /></label>
-          <label>Water liters<input type="number" step="0.1" onChange={(e) => setDaily({ ...daily, water_liters: Number(e.target.value) })} /></label>
-          <label>Stress level<input type="number" onChange={(e) => setDaily({ ...daily, stress_level: Number(e.target.value) })} /></label>
-          <label>Alcohol units<input type="number" step="0.1" onChange={(e) => setDaily({ ...daily, alcohol_units: Number(e.target.value) })} /></label>
-          <label>Smoking<input value={daily.smoking_status} onChange={(e) => setDaily({ ...daily, smoking_status: e.target.value })} /></label>
-          <label>Diet type<input value={daily.diet_type} onChange={(e) => setDaily({ ...daily, diet_type: e.target.value })} /></label>
-          <label>Heart rate<input type="number" onChange={(e) => setDaily({ ...daily, heart_rate: Number(e.target.value) })} /></label>
-          <label>Blood sugar<input type="number" step="0.1" onChange={(e) => setDaily({ ...daily, blood_sugar: Number(e.target.value) })} /></label>
-          <label>Weight kg<input type="number" step="0.1" onChange={(e) => setDaily({ ...daily, weight_kg: Number(e.target.value) })} /></label>
-        </div>
-        <div className="grid">
-          <button onClick={saveDailyLog} disabled={!user}>Save Daily Log</button>
-          <button onClick={runAnalysis} disabled={!user}>Run Full SSDI Pipeline</button>
+          <button onClick={createQuickLog} disabled={!user}>
+            Add Quick Log ({today})
+          </button>
+          <button onClick={runAnalysis} disabled={!user}>
+            Run SSDI Analysis
+          </button>
         </div>
       </section>
 
-      {error && <section><strong>Error:</strong> {error}</section>}
-      {analysis && <section><h2>4) Statistical Output</h2><pre>{JSON.stringify(analysis, null, 2)}</pre></section>}
+      {error && (
+        <section>
+          <strong>Error</strong>
+          <p>{error}</p>
+        </section>
+      )}
+
+      {analysis && (
+        <section>
+          <h2>Analysis Output</h2>
+          <pre>{JSON.stringify(analysis, null, 2)}</pre>
+        </section>
+      )}
     </main>
   );
 }

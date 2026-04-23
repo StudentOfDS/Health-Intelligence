@@ -1,68 +1,43 @@
-# Health Intelligence Platform
+# Health Intelligence App
 
-A **production-grade backend-first Health Intelligence Platform** where structured lifestyle and physiological data is continuously collected, stored as longitudinal time-series data, and processed through a full statistical decision engine (SSDI) to produce uncertainty-aware, interpretable insights.
+Production-oriented starter for a **Health Intelligence** platform using:
 
-## Platform architecture (core principle)
-- **Core product (brain):** FastAPI + PostgreSQL + Statistical Engine.
-- **Current face:** Next.js web app.
-- **Future face:** React Native mobile app (same backend APIs).
-
-This is a **single platform with multiple clients**, not separate products per device.
+- **Frontend:** Next.js (React, mobile-first UI)
+- **Backend:** FastAPI (validation + statistical decision engine)
+- **Database:** PostgreSQL (longitudinal time-series storage)
 
 ## What is implemented
 
-### Backend (central engine)
-- FastAPI API layer with structured validation.
-- SQLAlchemy data model with **PII separation**:
-  - `users` table stores anonymized identity.
-  - `user_pii` table stores email separately.
-  - `baseline_profiles` and `daily_logs` store health/statistical inputs.
-- Daily logs persisted as clean timestamped rows with one-log-per-user-per-day uniqueness.
+### 1) Data collection and storage
+- User identity table with anonymized identifiers.
+- Baseline onboarding profile (age, sex, height, weight, body fat, occupation, conditions, goal).
+- Daily structured health logs for nutrition, sleep, activity, stress, hydration, and optional physiology.
+- Input validation on the API boundary via Pydantic schemas.
 
-### Statistical Decision Engine (SSDI)
-Pipeline includes:
-1. **Imputation layer**
-   - Forward-fill for slow-changing bio metrics.
-   - Median fill for behavior metrics.
-2. **Outlier/anomaly layer**
-   - Z-score and IQR detection.
-   - Flagged values excluded from modeling inputs.
-3. **Transformation layer**
-   - Numeric standardization.
-   - Hybrid categorical encoding plan:
-     - low-cardinality → one-hot (drop first)
-     - medium-cardinality → binary encoding
-     - high-cardinality → target encoding with CV safeguards
-     - ordinal → label encoding
-4. **Cold-start stage gates**
-   - descriptive → inference → hypothesis → comparison → regression → polynomial
-5. **Inference layer**
-   - means + 95% confidence intervals.
-6. **Hypothesis layer**
-   - diet-vs-weight t-test with decision logic.
-7. **Comparison layer**
-   - chi-square test for categorical associations.
-8. **Modeling layer**
-   - multivariable OLS regression.
-   - polynomial feature expansion and polynomial OLS.
-9. **Diagnostics layer**
-   - VIF for multicollinearity.
-   - Breusch-Pagan (heteroscedasticity).
-   - Durbin-Watson (autocorrelation).
-10. **Data decay preview**
-    - exponential weighting to prioritize recency.
+### 2) Statistical decision pipeline (SSDI-ready foundation)
+The backend `StatisticalDecisionEngine` currently includes:
+- Missing-data imputation:
+  - Forward fill for slow-changing bio metrics.
+  - Median fill for behavior variables.
+- Outlier/anomaly handling:
+  - IQR-based anomaly detection.
+  - Outlier points are marked and nulled before downstream analysis.
+- Stage gating (cold-start thresholds):
+  - Descriptive only for very small N.
+  - Inference unlocked at 10+ days.
+  - Regression unlocked at 30+ days.
+  - Polynomial readiness checks at 45+ days.
+- Encoding strategy planner by categorical cardinality:
+  - One-hot (low cardinality), binary (medium), target encoding w/ CV (high), label encoding for ordinal-like fields.
 
-### Frontend (Next.js)
-- Structured workflow for:
-  - Identity creation
-  - Baseline onboarding
-  - Daily structured logging
-  - SSDI analysis output visualization
-- Pulls platform capability metadata from backend to reinforce multi-client backend-first design.
+### 3) Frontend workflow
+- Create user
+- Add quick daily log
+- Run analysis
+- Render structured JSON output (stage, anomaly stats, summaries)
 
 ## API endpoints
 `/api/v1`
-- `GET /platform/capabilities`
 - `POST /users`
 - `POST /baseline`
 - `POST /logs`
@@ -74,9 +49,10 @@ Pipeline includes:
 docker compose up --build
 ```
 
+Services:
 - Frontend: http://localhost:3000
 - Backend docs: http://localhost:8000/docs
-- Backend health: http://localhost:8000/health
+- Postgres: localhost:5432
 
 ## Local development
 
@@ -96,10 +72,11 @@ npm install
 npm run dev
 ```
 
-## Next production steps
-1. Alembic migrations and schema versioning.
-2. AuthN/AuthZ, encryption-at-rest, audit logs, and key management.
-3. Bayesian online updates and MANOVA support.
-4. Model monitoring, retraining schedules, and drift detection.
-5. Dedicated React Native client implementation.
-6. End-to-end automated tests and CI/CD gates.
+## Notes for next iteration
+To fully match a production-grade SSDI engine, next steps are:
+1. Alembic migrations and separate PII/PHI schemas.
+2. AuthN/AuthZ + encrypted fields + secrets management.
+3. Robust regression + VIF + heteroscedasticity/autocorrelation diagnostics.
+4. Sliding-window/exponential decay model weighting.
+5. Bayesian online updates and richer explainable insights layer.
+6. Test suite (backend unit + integration + frontend E2E).
