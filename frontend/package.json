@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "test:e2e": "playwright test"
+    "lint": "next lint"
   },
   "dependencies": {
     "next": "15.3.0",
@@ -17,7 +16,6 @@
   "devDependencies": {
     "typescript": "5.8.3",
     "@types/react": "19.1.2",
-    "@types/node": "22.15.3",
-    "@playwright/test": "1.52.0"
+    "@types/node": "22.15.3"
   }
 }

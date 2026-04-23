@@ -4,24 +4,14 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-
-
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8)
-
-
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
 
 
 class UserRead(BaseModel):
     id: int
     anonymized_id: str
+    email: EmailStr
 
     model_config = {"from_attributes": True}
 
@@ -51,7 +41,6 @@ class DailyLogCreate(BaseModel):
     protein_g: Optional[float] = Field(default=None, ge=0, le=500)
     carbs_g: Optional[float] = Field(default=None, ge=0, le=1200)
     fats_g: Optional[float] = Field(default=None, ge=0, le=400)
-    meal_timing: Optional[str] = None
     sleep_hours: Optional[float] = Field(default=None, ge=0, le=24)
     sleep_quality: Optional[int] = Field(default=None, ge=1, le=10)
     steps: Optional[int] = Field(default=None, ge=0, le=120000)

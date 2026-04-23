@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
 
 from app.api.routes import router
 from app.core.config import settings
@@ -20,9 +19,6 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup() -> None:
-    with engine.begin() as conn:
-        conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {settings.pii_schema}"))
-        conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {settings.phi_schema}"))
     Base.metadata.create_all(bind=engine)
 
 

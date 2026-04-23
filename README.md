@@ -1,86 +1,82 @@
-# Health Intelligence Platform
+# Health Intelligence App
 
-A production-grade, backend-first Health Intelligence Platform where structured lifestyle + physiological data is collected over time and processed by a centralized Statistical Decision Intelligence (SSDI) engine.
+Production-oriented starter for a **Health Intelligence** platform using:
 
-## ✅ Requested capabilities now included
+- **Frontend:** Next.js (React, mobile-first UI)
+- **Backend:** FastAPI (validation + statistical decision engine)
+- **Database:** PostgreSQL (longitudinal time-series storage)
 
-### 1) Alembic migrations + separate PII/PHI schemas
-- Added Alembic config and initial migration in `backend/alembic`.
-- Added Postgres schema separation:
-  - `pii` schema: identity/security fields (`user_pii`)
-  - `phi` schema: health analytics data (`users`, `baseline_profiles`, `daily_logs`)
-- Startup bootstraps `CREATE SCHEMA IF NOT EXISTS pii/phi`.
+## What is implemented
 
-### 2) AuthN/AuthZ + encrypted fields + secrets management
-- Added JWT authentication (`/api/v1/auth/login`).
-- Added route-level authorization enforcing user ownership of profile/log/analysis data.
-- Added encrypted PII storage (`email_encrypted`) with Fernet; lookup by `email_hash`.
-- Added password hashing with bcrypt.
-- Added secrets in config (JWT secret, field encryption key, token TTL) and env-driven settings.
+### 1) Data collection and storage
+- User identity table with anonymized identifiers.
+- Baseline onboarding profile (age, sex, height, weight, body fat, occupation, conditions, goal).
+- Daily structured health logs for nutrition, sleep, activity, stress, hydration, and optional physiology.
+- Input validation on the API boundary via Pydantic schemas.
 
-### 3) Robust regression + diagnostics
-- OLS multivariable regression.
-- Polynomial regression with interaction/squared terms.
-- VIF-based multicollinearity checks.
-- Breusch-Pagan heteroscedasticity test.
-- Durbin-Watson autocorrelation statistic.
+### 2) Statistical decision pipeline (SSDI-ready foundation)
+The backend `StatisticalDecisionEngine` currently includes:
+- Missing-data imputation:
+  - Forward fill for slow-changing bio metrics.
+  - Median fill for behavior variables.
+- Outlier/anomaly handling:
+  - IQR-based anomaly detection.
+  - Outlier points are marked and nulled before downstream analysis.
+- Stage gating (cold-start thresholds):
+  - Descriptive only for very small N.
+  - Inference unlocked at 10+ days.
+  - Regression unlocked at 30+ days.
+  - Polynomial readiness checks at 45+ days.
+- Encoding strategy planner by categorical cardinality:
+  - One-hot (low cardinality), binary (medium), target encoding w/ CV (high), label encoding for ordinal-like fields.
 
-### 4) Sliding-window/exponential data decay weighting
-- Added exponential decay weighting preview.
-- Added weighted regression (WLS) so recent records influence estimates more.
-
-### 5) Bayesian online updates + explainable insights
-- Added Bayesian posterior update for calories (normal-normal update).
-- Added plain-language explainable insights generated from stage/diagnostics/outliers.
-
-### 6) Test suite (backend unit + integration + frontend E2E)
-- Backend unit test for SSDI progression and output integrity.
-- Backend integration smoke test for app health + platform capabilities endpoint.
-- Frontend E2E scaffold using Playwright.
-
----
-
-## Architecture
-- **Backend core (“brain”)**: FastAPI + PostgreSQL + SSDI statistical engine.
-- **Web client (“face”)**: Next.js.
-- **Future client**: React Native consuming same APIs.
+### 3) Frontend workflow
+- Create user
+- Add quick daily log
+- Run analysis
+- Render structured JSON output (stage, anomaly stats, summaries)
 
 ## API endpoints
 `/api/v1`
-- `GET /platform/capabilities`
 - `POST /users`
-- `POST /auth/login`
-- `POST /baseline` (auth required)
-- `POST /logs` (auth required)
-- `GET /users/{user_id}/logs` (auth required)
-- `GET /users/{user_id}/analysis` (auth required)
+- `POST /baseline`
+- `POST /logs`
+- `GET /users/{user_id}/logs`
+- `GET /users/{user_id}/analysis`
 
 ## Run with Docker
 ```bash
 docker compose up --build
 ```
 
-## Local backend setup
+Services:
+- Frontend: http://localhost:3000
+- Backend docs: http://localhost:8000/docs
+- Postgres: localhost:5432
+
+## Local development
+
+### Backend
 ```bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-## Run tests
-### Backend
-```bash
-cd backend
-pytest
-```
-
-### Frontend E2E
+### Frontend
 ```bash
 cd frontend
 npm install
-npx playwright install
-npm run test:e2e
+npm run dev
 ```
+
+## Notes for next iteration
+To fully match a production-grade SSDI engine, next steps are:
+1. Alembic migrations and separate PII/PHI schemas.
+2. AuthN/AuthZ + encrypted fields + secrets management.
+3. Robust regression + VIF + heteroscedasticity/autocorrelation diagnostics.
+4. Sliding-window/exponential decay model weighting.
+5. Bayesian online updates and richer explainable insights layer.
+6. Test suite (backend unit + integration + frontend E2E).
