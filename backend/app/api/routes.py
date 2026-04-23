@@ -1,0 +1,103 @@
+from __future__ import annotations
+
+import hashlib
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.db.session import get_db
+from app.models.health import BaselineProfile, DailyLog, User
+from app.schemas.health import (
+    BaselineCreate,
+    BaselineRead,
+    DailyLogCreate,
+    DailyLogRead,
+    UserCreate,
+    UserRead,
+)
+from app.services.statistical_engine import StatisticalDecisionEngine
+
+router = APIRouter()
+engine = StatisticalDecisionEngine()
+
+
+@router.post("/users", response_model=UserRead)
+def create_user(payload: UserCreate, db: Session = Depends(get_db)):
+    exists = db.scalar(select(User).where(User.email == payload.email))
+    if exists:
+        raise HTTPException(status_code=409, detail="Email already exists")
+
+    anonymized = hashlib.sha256(f"{payload.email}:{uuid.uuid4()}".encode()).hexdigest()
+    user = User(email=payload.email, anonymized_id=anonymized)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.post("/baseline", response_model=BaselineRead)
+def upsert_baseline(payload: BaselineCreate, db: Session = Depends(get_db)):
+    user = db.get(User, payload.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    profile = db.scalar(select(BaselineProfile).where(BaselineProfile.user_id == payload.user_id))
+    if profile:
+        for k, v in payload.model_dump().items():
+            setattr(profile, k, v)
+    else:
+        profile = BaselineProfile(**payload.model_dump())
+        db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+
+@router.post("/logs", response_model=DailyLogRead)
+def create_daily_log(payload: DailyLogCreate, db: Session = Depends(get_db)):
+    user = db.get(User, payload.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    log = DailyLog(**payload.model_dump())
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+    return log
+
+
+@router.get("/users/{user_id}/logs", response_model=list[DailyLogRead])
+def list_logs(user_id: int, db: Session = Depends(get_db)):
+    logs = db.scalars(select(DailyLog).where(DailyLog.user_id == user_id).order_by(DailyLog.log_date)).all()
+    return list(logs)
+
+
+@router.get("/users/{user_id}/analysis")
+def analyze_user(user_id: int, db: Session = Depends(get_db)):
+    logs = db.scalars(select(DailyLog).where(DailyLog.user_id == user_id).order_by(DailyLog.log_date)).all()
+    records = [
+        {
+            "log_date": log.log_date.isoformat(),
+            "calories": log.calories,
+            "protein_g": log.protein_g,
+            "carbs_g": log.carbs_g,
+            "fats_g": log.fats_g,
+            "sleep_hours": log.sleep_hours,
+            "sleep_quality": log.sleep_quality,
+            "steps": log.steps,
+            "exercise_minutes": log.exercise_minutes,
+            "sedentary_minutes": log.sedentary_minutes,
+            "water_liters": log.water_liters,
+            "stress_level": log.stress_level,
+            "alcohol_units": log.alcohol_units,
+            "smoking_status": log.smoking_status,
+            "diet_type": log.diet_type,
+            "heart_rate": log.heart_rate,
+            "blood_sugar": log.blood_sugar,
+            "weight_kg": log.weight_kg,
+        }
+        for log in logs
+    ]
+    return engine.run_pipeline(records)
